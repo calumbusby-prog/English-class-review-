@@ -8,6 +8,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22
+      # Recommended: lets Claude actually read docs and write correct
+      # exercises. Without it, falls back to the free parser automatically.
+      - key: ANTHROPIC_API_KEY
+        sync: false
       # For docs shared "Anyone with the link can view" — see README.md.
       - key: GOOGLE_API_KEY
         sync: false

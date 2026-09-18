@@ -8,7 +8,9 @@
     "start": "node server/index.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.126.0",
     "express": "^4.19.2",
-    "google-auth-library": "^11.1.0"
+    "google-auth-library": "^11.1.0",
+    "zod": "^3.24.1"
   }
 }

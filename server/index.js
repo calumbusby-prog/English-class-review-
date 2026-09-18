@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listDocsInFolder, exportDocText } from "./drive.js";
 import { parseTaggedText, mergeParsed } from "./parseContent.js";
+import { generateContentFromDoc } from "./generateContent.js";
 import { getClasses } from "./classes.js";
 import { extractDocId } from "./docId.js";
 
@@ -10,7 +11,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+// AI generation costs real money/time per call, and doc content doesn't
+// change every few minutes, so cache longer than a plain parse would need.
+const CACHE_TTL_MS = 30 * 60 * 1000;
 const cache = new Map(); // cache key -> { data, expires }
 
 app.use(express.static(path.join(__dirname, "..", "public")));
@@ -20,9 +23,18 @@ app.get("/api/classes", (req, res) => {
   res.json(Object.entries(classes).map(([slug, c]) => ({ slug, name: c.name || slug })));
 });
 
-// Fetches + parses a "this week" doc plus a pool of "course" docs, with a
-// short cache so a class full of students hitting Start at once doesn't
-// each trigger their own round of Drive API calls.
+function fallbackParse(weekText, restTexts, weekLabel) {
+  const weekParsed = parseTaggedText(weekText);
+  const courseParsed = mergeParsed(restTexts.map(parseTaggedText));
+  return { weekLabel, week: weekParsed, course: courseParsed };
+}
+
+// Fetches a "this week" doc plus a pool of "course" docs, then turns them
+// into game content — via Claude if ANTHROPIC_API_KEY is set (it reads
+// the dated subheadings itself to figure out what's most recent, and
+// writes exercises with answers that are actually correct), otherwise
+// via the free tag/heuristic parser. Cached so a class full of students
+// hitting Start at once doesn't each trigger their own round of calls.
 async function loadContent(cacheKey, weekDocId, restDocIds, weekLabel) {
   const cached = cache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
@@ -30,12 +42,22 @@ async function loadContent(cacheKey, weekDocId, restDocIds, weekLabel) {
   }
 
   const weekText = await exportDocText(weekDocId);
-  const weekParsed = parseTaggedText(weekText);
-
   const restTexts = await Promise.all(restDocIds.map((id) => exportDocText(id)));
-  const courseParsed = mergeParsed(restTexts.map(parseTaggedText));
 
-  const data = { weekLabel, week: weekParsed, course: courseParsed };
+  let data;
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      const combinedText = [weekText, ...restTexts].join("\n\n--- (next document) ---\n\n");
+      const generated = await generateContentFromDoc(combinedText);
+      data = { weekLabel: generated.weekLabel || weekLabel, week: generated.week, course: generated.course };
+    } catch (err) {
+      console.error("AI content generation failed, falling back to the tag/heuristic parser:", err);
+      data = fallbackParse(weekText, restTexts, weekLabel);
+    }
+  } else {
+    data = fallbackParse(weekText, restTexts, weekLabel);
+  }
+
   cache.set(cacheKey, { data, expires: Date.now() + CACHE_TTL_MS });
   return data;
 }

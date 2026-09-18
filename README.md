@@ -21,48 +21,73 @@ on what's new without letting older vocab and grammar fully fade.
 ## How content gets in — live from your Google Docs
 
 Nothing about the game's content is hardcoded, and there's nothing to
-edit or redeploy each week. A small server reads whichever Google Doc
-you were most recently working in for a given class, live, every time a
-student clicks Start (cached for 5 minutes so a class full of students
-doesn't hammer the Drive API).
+edit or redeploy each week. A small server reads a Google Doc live,
+every time a student clicks Start (cached for 30 minutes so a class full
+of students doesn't trigger repeat work).
 
-**Vocabulary needs no special formatting at all.** The server scans the
-doc for ordinary "Term — definition" style lines — the kind that already
-show up naturally in a vocab list, like:
+### Claude reads the doc and writes the exercises (recommended)
 
-```
-Assertive — confident, but not rude; you say clearly what you want
-Blunt — so honest it can sound rude
-```
+Set `ANTHROPIC_API_KEY` and the server hands your doc's raw text to
+Claude, which:
 
-— and turns them straight into vocabulary pairs, which power the
-matching round, an auto-generated multiple-choice round ("What does
-_Blunt_ mean?"), and the bird-game finale. No tags, no reformatting.
+1. **Finds the dated subheadings** in your notes (whatever format you
+   already use — "16/9 - Topic", "### 17/9 - Topic", etc.) and works out
+   which one is most recent.
+2. **Builds "this week" from that section** — vocab, multiple choice,
+   gap fill, error-correction, and a writing prompt, drawn from the
+   actual material there.
+3. **Builds a smaller "course" pool from your older sections**, for the
+   10% mix-in.
+4. **Writes answers that are actually correct.** Claude checks each
+   question against the source material — this is what a regex-based
+   parser fundamentally can't do, since it has no idea what a sentence
+   *means*.
 
-This extraction deliberately stays cautious: it only recognizes short,
-dictionary-style definitions, and explicitly rejects lines that look
-like a note about a specific person rather than a word's meaning (e.g.
-"Alejandro - wants to improve his grammar" never gets pulled in, even
-though it matches the same dash pattern). If a line doesn't get picked
-up, it's just skipped — nothing about your notes is ever exposed beyond
-what genuinely looks like vocabulary.
+No tags, no reformatting, nothing to learn — it works on the exact
+notes you already write, including a single doc with years of lessons
+mixed together.
 
-**Everything else — multiple choice, gap fill, error-spotting, writing
-prompts — still needs explicit tags**, since those require a specific
-right answer that can't be inferred from prose. Tag lines are also
-skipped if malformed, and only tagged lines are ever read for those
-categories — nothing freeform leaks through. A handful of tagged lines a
-week (5–10) is enough for a full game; even zero is fine, since
-vocabulary extraction alone already produces a matching round, an MCQ
-round, and a bird-game finale on its own.
+**Privacy:** your whole doc's text is sent to the Claude API to do this
+— including any private notes about individual students. Claude is
+explicitly instructed to output only generic teaching material (vocab,
+grammar, generic example sentences) and never any student's name,
+circumstances, or personal details, but the input itself isn't filtered
+before sending. If that's a concern, use the free parser below instead,
+which never sends your doc anywhere.
 
-### The tags (optional — for anything beyond vocabulary)
+**Cost:** roughly a few cents per doc per generation (cached for 30
+minutes), using Claude Opus 5 by default. Set `ANTHROPIC_MODEL` to a
+cheaper model (e.g. `claude-haiku-4-5`) if cost matters more than
+squeezing out the best possible questions.
+
+### The free fallback (no API key, no cost)
+
+Without `ANTHROPIC_API_KEY`, the server falls back to a plain,
+rule-based parser instead — no external calls, nothing sent anywhere,
+but noticeably less capable:
+
+- **Vocabulary needs no special formatting.** It scans for ordinary
+  "Term — definition" lines — the kind that already show up naturally in
+  a vocab list, like `Assertive — confident, but not rude; you say
+  clearly what you want` — and turns them into vocabulary pairs, which
+  power the matching round, an auto-generated "What does X mean?"
+  multiple-choice round, and the bird-game finale.
+- It deliberately stays cautious about what counts as vocabulary,
+  rejecting lines that look like a note about a specific person rather
+  than a word's meaning (e.g. "Alejandro - wants to improve his grammar"
+  never gets pulled in, even though it matches the same dash pattern).
+- **Everything else — explicit multiple choice, gap fill,
+  error-spotting, writing prompts — needs manual tags**, since a fixed
+  parser has no way to invent a question with a guaranteed-correct
+  answer from prose. See the cheat sheet below.
+- It has no way to identify "most recent" from dated subheadings within
+  a single doc — recency is instead controlled by which doc(s) you point
+  a class at (see below).
+
+#### The tags
 
 Drop these anywhere in your doc, one per line, mixed in with your normal
-notes, if you also want multiple choice, gap fill, error-spotting, or
-writing prompts (or want to hand-write a VOCAB pair instead of relying on
-extraction — a tagged `VOCAB:` line always takes priority over an
-extracted one with the same term):
+notes:
 
 ```
 VOCAB: term | definition
@@ -91,24 +116,18 @@ Notes on the format:
   fields, is just skipped — it will never break the rest of the doc.
 - A handful of tagged lines a week (5–10) is plenty for a full game.
 
-### How "this week" is chosen
+#### How "this week" is chosen (free parser only)
 
-Each class points at its content one of two ways — pick whichever matches
-how you actually organize your Docs:
+With Claude generation on, this doesn't apply — it reads dates within a
+single doc itself. Without it, each class points at its content one of
+two ways:
 
-- **One doc per class** (`docId`) — the simplest option, and the right
-  one if you keep a single running notes doc per class, adding to it
-  lesson after lesson. That doc is always "this week's material." There's
-  no separate course-wide bank unless you also list some older docs in
-  `courseDocIds` (see below).
-- **One folder per class** (`folderId`) — if instead you create a new
-  Doc for each lesson, point at the folder that holds them all. The
-  **most recently edited** Doc in the folder becomes "this week"; every
-  other Doc in it is pooled as the **course-wide** bank (the 10% mix-in).
-
-Either way, the natural workflow is the same: keep writing in your doc as
-usual, tag a few lines as you go, and the game picks it up automatically
-— no separate step, nothing to redeploy.
+- **One doc per class** (`docId`) — the whole doc counts as "this
+  week." There's no separate course-wide bank unless you also list some
+  older docs in `courseDocIds` (see below).
+- **One folder per class** (`folderId`) — the **most recently edited**
+  Doc in the folder becomes "this week"; every other Doc in it is pooled
+  as the **course-wide** bank (the 10% mix-in).
 
 ### The normal way in: paste the doc link, no setup per student
 
@@ -131,13 +150,27 @@ everyone pasting the same long URL, but it's never required.
 
 ## One-time setup
 
-None of this is required to use the paste-a-link flow above — the game
-already tries a free, zero-setup method first. This section only matters
-if that method turns out to be blocked (see below), or if you want named
-class shortcuts. Deploying the server itself (next section) is the one
-genuinely required step.
+The paste-a-link flow above works with zero setup — the game already
+tries a free method first for both reading the doc and generating
+content. This section only matters if you want Claude's smarter content
+generation, if the free Drive method turns out to be blocked, or if you
+want named class shortcuts. Deploying the server itself (last section)
+is the one genuinely required step.
 
-### 1. Get Google Drive credentials
+### 1. Get an Anthropic API key (recommended, for content generation)
+
+1. Go to [console.anthropic.com](https://console.anthropic.com/) and
+   sign in or create an account.
+2. **API Keys → Create Key**. Copy it — this is your
+   `ANTHROPIC_API_KEY`.
+3. Add billing details if you haven't already (Settings → Billing) —
+   generation costs roughly a few cents per doc, cached for 30 minutes.
+
+Skip this and the server automatically falls back to the free rule-based
+parser instead (see above) — nothing breaks, it just needs `VOCAB:` /
+`MCQ:` / etc. tags to produce anything beyond vocabulary.
+
+### 2. Get Google Drive credentials
 
 **If your docs are shared "Anyone with the link can view"** (the normal
 setup for a doc you hand students a link to) — just get an API key, no
@@ -177,7 +210,7 @@ Either way, copy the Doc's ID from its URL:
 `https://docs.google.com/document/d/`**`THIS_PART_IS_THE_ID`**`/edit`
 (or a folder's ID from `https://drive.google.com/drive/folders/`**`THIS_PART`**).
 
-### 2. (Optional) List a class in `server/classes.json`
+### 3. (Optional) List a class in `server/classes.json`
 
 This file is committed to the repo (doc/folder IDs aren't secret — the
 Drive API still requires the doc to actually be shared with the service
@@ -209,17 +242,18 @@ With one class configured, students just go to your deployed URL and
 click **Start**. With more than one, the home page automatically shows a
 button per class (linking to `play.html?class=tuesday-beginners`, etc.).
 
-### 3. Deploy the server
+### 4. Deploy the server
 
 **Render (recommended, free tier available):**
 
 1. Push this repo to GitHub (already done if you're reading this there).
 2. In Render, **New → Web Service**, connect this repo — it reads
    `render.yaml` automatically.
-3. Leave the Google credential env vars blank for now and deploy — try
-   pasting a link on the live site first. Only come back and add
-   whichever credentials you got in step 1 if you hit the "doc isn't
-   publicly viewable" error:
+3. Add `ANTHROPIC_API_KEY` now if you got one in step 1 — that's what
+   turns on Claude's content generation from the start. Leave the Google
+   credential env vars blank for now and deploy — try pasting a link on
+   the live site first. Only come back and add whichever credentials you
+   got in step 2 if you hit the "doc isn't publicly viewable" error:
    - `GOOGLE_API_KEY` — for public docs, or
    - `GOOGLE_CLIENT_EMAIL` + `GOOGLE_PRIVATE_KEY` (the `private_key`
      field from the downloaded JSON — keep the `\n` characters as literal
@@ -257,12 +291,14 @@ cp .env.example .env   # fill in your real credentials
 npm start
 ```
 
-Open `http://localhost:3000`. If no classes are configured (or the Drive
-credentials are wrong), the game automatically falls back to built-in
-sample content in `public/js/content.js` — so you can always test the
-game mechanics themselves without live Drive access. A small warning
-appears on the start screen when this fallback kicks in, so you'll know
-if something's misconfigured in production.
+Open `http://localhost:3000`. Without `ANTHROPIC_API_KEY` set, content
+generation falls back to the free tag/heuristic parser automatically —
+no error, just less capable output. If no classes are configured (or the
+Drive credentials are wrong too), the game falls back further to
+built-in sample content in `public/js/content.js`, so you can always
+test the game mechanics without any live access at all. A small warning
+appears on the start screen when that deepest fallback kicks in, so
+you'll know if something's misconfigured in production.
 
 ## Project structure
 
@@ -277,9 +313,11 @@ public/                 Everything the browser loads directly
 server/
   index.js              Express app: serves public/, exposes /api/content
   drive.js              Google Drive reads: public export, then API key, then service account
-  parseContent.js       Vocab extraction + tagged-line parsing into game content
+  generateContent.js    Claude-based content generation (when ANTHROPIC_API_KEY is set)
+  parseContent.js       Free fallback: vocab extraction + tagged-line parsing
   classes.js            Reads classes.json (+ optional CLASS_FOLDERS_JSON override)
   classes.json          Committed class → Doc/folder mapping (see above)
+  docId.js              Extracts a Doc ID from a pasted link or bare ID
 ```
 
 `engine.js` and `bird.js` never reference any specific topic or
