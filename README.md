@@ -86,9 +86,9 @@ but noticeably less capable:
   error-spotting, writing prompts — needs manual tags**, since a fixed
   parser has no way to invent a question with a guaranteed-correct
   answer from prose. See the cheat sheet below.
-- It has no way to identify "most recent" from dated subheadings within
-  a single doc — recency is instead controlled by which doc(s) you point
-  a class at (see below).
+- It does find dated subheadings and scope "this week" to the most
+  recent one, even within a single doc — see below for how, and its one
+  real limitation (no year in "DD/MM" headers).
 
 #### The tags
 
@@ -122,18 +122,36 @@ Notes on the format:
   fields, is just skipped — it will never break the rest of the doc.
 - A handful of tagged lines a week (5–10) is plenty for a full game.
 
-#### How "this week" is chosen (free parser only)
+#### How "this week" is chosen (free parser)
 
-With Claude generation on, this doesn't apply — it reads dates within a
-single doc itself. Without it, each class points at its content one of
-two ways:
+The free parser also looks for dated subheadings — "16/9 - Topic",
+"### 17/9 - Topic", and similar — anywhere across the doc(s) a class
+points at, and scopes "this week" to just the section with the latest
+date. Everything from older sections becomes the course-wide pool. This
+also keeps multiple-choice distractors sensible: a wrong option is drawn
+from the *same* lesson's vocabulary first, not a random word from a
+different week, so "What does X mean?" doesn't get an obviously-unrelated
+wrong answer.
 
-- **One doc per class** (`docId`) — the whole doc counts as "this
-  week." There's no separate course-wide bank unless you also list some
-  older docs in `courseDocIds` (see below).
-- **One folder per class** (`folderId`) — the **most recently edited**
-  Doc in the folder becomes "this week"; every other Doc in it is pooled
-  as the **course-wide** bank (the 10% mix-in).
+One limitation worth knowing: "DD/MM" headers carry no year, so recency
+is a same-year approximation (good for a doc actively being added to
+within one teaching period; it can't perfectly order dates spanning a
+year boundary). Claude generation handles this properly, reasoning about
+the actual current date, if that matters enough to be worth the cost.
+
+If a doc has no dated subheadings at all, the whole thing is treated as
+"this week" with no course-wide pool — same as before. Each class still
+points at its source doc(s) one of two ways:
+
+- **One doc per class** (`docId`) — typically a single running notes
+  doc with many dated sections inside it, which is what the
+  date-scoping above is built for. There's no separate course-wide pool
+  from *other* docs unless you also list some in `courseDocIds` (see
+  below) — but older dated sections within the same doc are still pooled
+  automatically.
+- **One folder per class** (`folderId`) — every Doc in the folder is
+  read and section-split the same way; the single most recent dated
+  section found across all of them becomes "this week."
 
 ### The normal way in: paste the doc link, no setup per student
 

@@ -42,16 +42,25 @@ function pickWeighted(weekArr, courseArr, n) {
 // vocab pairs — used when a doc has extracted/tagged vocabulary but no
 // explicit MCQ: lines, so the round still has real questions instead of
 // being skipped.
-function synthesizeMcqFromVocab(vocabPool, count) {
-  if (vocabPool.length < 2) return [];
-  const pool = shuffle(vocabPool);
+//
+// Wrong options are drawn from `pool` itself first (the same lesson's
+// vocab, so they're topically close — other adjectives from the same
+// list, say) and only fall back to `fallbackPool` (typically pool +
+// older material) if that one lesson doesn't have enough other words to
+// draw from. Without this, a distractor pulled from an unrelated older
+// lesson can make the right answer obvious or the question nonsensical.
+function synthesizeMcqFromPool(pool, fallbackPool, count) {
+  if (pool.length < 1) return [];
+  const shuffled = shuffle(pool);
   const out = [];
-  for (let i = 0; i < Math.min(count, pool.length); i++) {
-    const correctItem = pool[i];
-    const distractors = shuffle(vocabPool.filter((v) => v.term !== correctItem.term))
-      .slice(0, 3)
-      .map((v) => v.definition);
-    if (distractors.length < 1) continue;
+  for (let i = 0; i < Math.min(count, shuffled.length); i++) {
+    const correctItem = shuffled[i];
+    let distractorSource = pool.filter((v) => v.term !== correctItem.term);
+    if (distractorSource.length < 1) {
+      distractorSource = fallbackPool.filter((v) => v.term !== correctItem.term);
+    }
+    if (distractorSource.length < 1) continue;
+    const distractors = shuffle(distractorSource).slice(0, 3).map((v) => v.definition);
     const options = shuffle([correctItem.definition, ...distractors]);
     out.push({
       q: `What does "${correctItem.term}" mean?`,
@@ -148,8 +157,11 @@ export class GameEngine {
   async mcqRound() {
     let items = pickWeighted(this.content.week.mcq, this.content.course.mcq, 5);
     if (!items.length) {
-      const vocabPool = [...this.content.week.vocabMatch, ...this.content.course.vocabMatch];
-      items = synthesizeMcqFromVocab(vocabPool, 5);
+      const vocabAll = [...this.content.week.vocabMatch, ...this.content.course.vocabMatch];
+      const weekMcq = synthesizeMcqFromPool(this.content.week.vocabMatch, vocabAll, 5);
+      const courseMcq =
+        weekMcq.length < 5 ? synthesizeMcqFromPool(this.content.course.vocabMatch, vocabAll, 5 - weekMcq.length) : [];
+      items = shuffle([...weekMcq, ...courseMcq]);
     }
     for (let i = 0; i < items.length; i++) {
       await this.mcqQuestion(items[i], i + 1, items.length);
@@ -419,18 +431,28 @@ export class GameEngine {
       duels.push({ prompt: m.q, correct: m.options[m.correct], wrong, weight: 3 });
     }
 
+    // Distractors come from the SAME pool (week-vs-week, course-vs-course)
+    // first, so a wrong option stays topically close to the correct one
+    // instead of being some unrelated word from a different lesson —
+    // only falling back to the combined pool if that lesson is too small
+    // on its own to supply one.
     const vocabAll = [...this.content.week.vocabMatch, ...this.content.course.vocabMatch];
-    for (const v of vocabAll) {
-      const distractorPool = vocabAll.filter((o) => o.term !== v.term);
-      if (!distractorPool.length) continue;
-      const distractor = distractorPool[Math.floor(Math.random() * distractorPool.length)];
-      duels.push({
-        prompt: `"${v.term}" means...`,
-        correct: v.definition,
-        wrong: distractor.definition,
-        weight: 3,
-      });
-    }
+    const addVocabDuels = (pool) => {
+      for (const v of pool) {
+        let distractorPool = pool.filter((o) => o.term !== v.term);
+        if (!distractorPool.length) distractorPool = vocabAll.filter((o) => o.term !== v.term);
+        if (!distractorPool.length) continue;
+        const distractor = distractorPool[Math.floor(Math.random() * distractorPool.length)];
+        duels.push({
+          prompt: `"${v.term}" means...`,
+          correct: v.definition,
+          wrong: distractor.definition,
+          weight: 3,
+        });
+      }
+    };
+    addVocabDuels(this.content.week.vocabMatch);
+    addVocabDuels(this.content.course.vocabMatch);
 
     const errAll = [...this.content.week.errorSpotting, ...this.content.course.errorSpotting];
     for (const e of errAll) {

@@ -2,7 +2,7 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listDocsInFolder, exportDocText } from "./drive.js";
-import { parseTaggedText, mergeParsed } from "./parseContent.js";
+import { parseDocsForClass } from "./parseContent.js";
 import { generateContentFromDoc } from "./generateContent.js";
 import { getClasses } from "./classes.js";
 import { extractDocId } from "./docId.js";
@@ -24,9 +24,13 @@ app.get("/api/classes", (req, res) => {
 });
 
 function fallbackParse(weekText, restTexts, weekLabel) {
-  const weekParsed = parseTaggedText(weekText);
-  const courseParsed = mergeParsed(restTexts.map(parseTaggedText));
-  return { weekLabel, week: weekParsed, course: courseParsed };
+  // Re-splits by dated subheadings across everything available for this
+  // class, rather than trusting weekText/restTexts' doc-level split —
+  // a single doc with multiple dated lessons (the common case) gets its
+  // most recent lesson scoped out here even though it's "one doc".
+  const { weekParsed, courseParsed, weekSectionTitle } = parseDocsForClass([weekText, ...restTexts]);
+  const label = weekSectionTitle ? `${weekLabel} (${weekSectionTitle})` : weekLabel;
+  return { weekLabel: label, week: weekParsed, course: courseParsed };
 }
 
 // Fetches a "this week" doc plus a pool of "course" docs, then turns them

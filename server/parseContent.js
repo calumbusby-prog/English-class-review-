@@ -160,3 +160,73 @@ export function mergeParsed(parsedList) {
   }
   return merged;
 }
+
+// Splits a doc's text at dated subheadings like "16/9 - Predictions" or
+// "### 17/9 - Topic" (day/month — validated as day 1-31, month 1-12, so
+// a page-number-shaped false positive like "24/25 - Document" can't
+// match). Any text before the first dated heading becomes one undated
+// section. This is what lets the free parser scope "this week" to a
+// single lesson's material within one continuously-growing doc, instead
+// of treating the whole document as one undifferentiated pool.
+const DATE_HEADER_RE = /^#{0,6}\s*(\d{1,2})\/(\d{1,2})\s*[-–—]\s*(.+)$/;
+
+function splitIntoDatedSections(text) {
+  const lines = (text || "").split(/\r?\n/);
+  const sections = [];
+  let current = { month: null, day: null, title: null, lines: [] };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    const match = line.match(DATE_HEADER_RE);
+    if (match) {
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10);
+      if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+        if (current.lines.length) sections.push(current);
+        current = { month, day, title: match[3].trim(), lines: [] };
+        continue;
+      }
+    }
+    current.lines.push(rawLine);
+  }
+  if (current.lines.length) sections.push(current);
+  return sections;
+}
+
+// Picks whichever dated section has the latest month/day. No year is
+// available in "DD/MM" headers, so this is a same-year approximation —
+// good enough for a doc actively being added to within one teaching
+// period, but it can't tell "22/10" from last year apart from "25/2"
+// this year. (The AI-generation path handles this properly by reasoning
+// about the actual current date — see generateContent.js.)
+function pickMostRecentSection(sections) {
+  const dated = sections.filter((s) => s.month != null);
+  if (!dated.length) return null;
+  return dated.reduce((best, s) => (s.month * 100 + s.day > best.month * 100 + best.day ? s : best));
+}
+
+// Combines however many raw doc texts a class has into one "this week"
+// section and one "course" pool, using dated subheadings to find the
+// most recent lesson. Falls back to treating everything as "week" (no
+// course pool) when no dated headings are found anywhere.
+export function parseDocsForClass(texts) {
+  const allSections = texts.flatMap((t) => splitIntoDatedSections(t));
+  const weekSection = pickMostRecentSection(allSections);
+
+  if (!weekSection) {
+    return {
+      weekParsed: parseTaggedText(texts.join("\n\n")),
+      courseParsed: emptyBucket(),
+      weekSectionTitle: null,
+    };
+  }
+
+  const weekText = weekSection.lines.join("\n");
+  const courseTexts = allSections.filter((s) => s !== weekSection).map((s) => s.lines.join("\n"));
+
+  return {
+    weekParsed: parseTaggedText(weekText),
+    courseParsed: mergeParsed(courseTexts.map(parseTaggedText)),
+    weekSectionTitle: weekSection.title,
+  };
+}
