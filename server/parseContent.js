@@ -23,12 +23,21 @@
 
 const TAG_RE = /^(VOCAB|MCQ|GAPFILL|ERROR|WRITE)\s*:\s*(.+)$/i;
 
-// "Term — definition" or "Term - definition", optionally after a list
-// marker (-, *, •, "1.", "a)", etc). Non-greedy term capture so it stops
-// at the FIRST separator, which is what keeps "Passive-aggressive —
-// shows anger..." working (the internal hyphen has no spaces around it,
-// so it's never mistaken for the separator).
-const BULLET_PREFIX_RE = /^\s*(?:[-*•]|\d+[.)]|[a-hA-H][.)])\s*/;
+// "Term — definition" or "Term - definition", optionally after a plain
+// list marker (-, *, •). Non-greedy term capture so it stops at the
+// FIRST separator, which is what keeps "Passive-aggressive — shows
+// anger..." working (the internal hyphen has no spaces around it, so
+// it's never mistaken for the separator).
+//
+// Deliberately NOT stripped: numbered ("1.") or lettered ("a)") list
+// markers. Those show up on matching-exercise answer keys like
+// "a) attach - tied down", where the two sides are in an inconsistent,
+// exercise-specific order (sometimes gloss-then-word, sometimes
+// word-then-gloss) — extracting those produced backwards, nonsensical
+// pairs in practice. Leaving the marker on means VALID_TERM_RE below
+// rejects the line outright (a term can't contain ")" or a digit+dot),
+// which is the intended effect — fewer pairs, but ones we can trust.
+const BULLET_PREFIX_RE = /^\s*[-*•]\s*/;
 const DASH_SPLIT_RE = /^(.+?)\s[—–]\s(.+)$/; // em/en dash, preferred — rarely appears mid-sentence in these docs
 const HYPHEN_SPLIT_RE = /^(.+?)\s-\s(.+)$/; // plain hyphen fallback
 const VALID_TERM_RE = /^[A-Za-z][A-Za-z'-]*(?:\s[A-Za-z'-]+){0,3}$/; // 1–4 words, letters/'/- only

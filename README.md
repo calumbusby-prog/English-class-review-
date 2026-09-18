@@ -75,7 +75,13 @@ but noticeably less capable:
 - It deliberately stays cautious about what counts as vocabulary,
   rejecting lines that look like a note about a specific person rather
   than a word's meaning (e.g. "Alejandro - wants to improve his grammar"
-  never gets pulled in, even though it matches the same dash pattern).
+  never gets pulled in, even though it matches the same dash pattern), and
+  ignores numbered/lettered exercise lines like "a) attach - tied down"
+  entirely — those are often matching-exercise answer keys where the two
+  sides are in an inconsistent order, and extracting them produced
+  backwards, confusing pairs in practice. The tradeoff is fewer vocab
+  pairs picked up per doc, in exchange for the ones it does find being
+  ones you can trust.
 - **Everything else — explicit multiple choice, gap fill,
   error-spotting, writing prompts — needs manual tags**, since a fixed
   parser has no way to invent a question with a guaranteed-correct
