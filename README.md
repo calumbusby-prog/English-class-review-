@@ -90,9 +90,10 @@ home page has a "paste your Doc link" field (in the teacher section) —
 paste any Google Doc link there and hit **Preview this doc** to play it
 immediately, using `play.html?doc=<link>` under the hood.
 
-This still requires the doc to already be shared with the service
-account (see setup below) — pasting a random doc you haven't shared just
-fails with a clear error rather than leaking anything. It's meant for
+This still requires the doc to already be readable one of the ways
+described below (publicly shared, or shared with a service account) —
+pasting a random doc that isn't just fails with a clear error rather
+than leaking anything. It's meant for
 quickly checking that your tags are working, or for a one-off review
 session you don't want to bother naming as a permanent class. If you end
 up using it regularly, it's worth adding it to `classes.json` instead
@@ -100,38 +101,50 @@ up using it regularly, it's worth adding it to `classes.json` instead
 
 ## One-time setup
 
-You only need to do this once per class (not weekly).
+You only need to do this once (not weekly), and which path you take
+depends on how your docs are shared.
 
-### 1. Create a Google Cloud service account
+### 1. Get Google Drive credentials
 
-This lets the server read your Docs without ever making them public.
+**If your docs are shared "Anyone with the link can view"** (the normal
+setup for a doc you hand students a link to) — just get an API key, no
+sharing step needed at all:
 
 1. Go to [console.cloud.google.com](https://console.cloud.google.com/)
    and create a project (or use an existing one).
 2. **APIs & Services → Library** → search for **Google Drive API** →
    **Enable**.
-3. **APIs & Services → Credentials → Create Credentials → Service
+3. **APIs & Services → Credentials → Create Credentials → API key**.
+4. (Recommended) Click the new key → under **API restrictions**, choose
+   **Restrict key** → select **Google Drive API** only, so the key can't
+   be used for anything else if it ever leaked.
+5. Copy the key — this is your `GOOGLE_API_KEY`.
+
+That's it — no key file, no sharing step, no private key to protect.
+
+**If a doc should stay private instead** (not shared with anyone by
+link), use a service account:
+
+1. Same steps 1–2 above (project + Drive API enabled).
+2. **APIs & Services → Credentials → Create Credentials → Service
    account**. Give it any name (e.g. "english-class-review").
-4. Open the new service account → **Keys** tab → **Add Key → Create new
-   key → JSON**. This downloads a `.json` file — keep it private, never
-   commit it to this repo.
-5. Copy the service account's **email address** (looks like
-   `english-class-review@your-project.iam.gserviceaccount.com`).
+3. Open it → **Keys** tab → **Add Key → Create new key → JSON**. This
+   downloads a `.json` file — keep it private, never commit it here.
+4. Copy the service account's **email address** (looks like
+   `english-class-review@your-project.iam.gserviceaccount.com`), then
+   share the specific doc or folder with that email (**Viewer** access
+   is enough) — the one sharing step this path needs, since the doc
+   itself stays otherwise private.
 
-### 2. Share your class doc(s) or folder with it
+You can mix both: some classes on `GOOGLE_API_KEY` (public docs), others
+covered by a service account (private ones) — `server/drive.js` tries
+each available method automatically.
 
-For each class, depending on which mode you're using (see above):
+Either way, copy the Doc's ID from its URL:
+`https://docs.google.com/document/d/`**`THIS_PART_IS_THE_ID`**`/edit`
+(or a folder's ID from `https://drive.google.com/drive/folders/`**`THIS_PART`**).
 
-- **Single doc**: open the Doc, share it with the service account's email
-  address (just like sharing with a person) — **Viewer** access is
-  enough. Copy the Doc's ID from its URL:
-  `https://docs.google.com/document/d/`**`THIS_PART_IS_THE_ID`**`/edit`
-- **Folder of docs**: share the whole folder with the service account
-  instead (this covers every Doc inside it, including ones you add
-  later). Copy the folder's ID from its URL:
-  `https://drive.google.com/drive/folders/`**`THIS_PART_IS_THE_ID`**
-
-### 3. List the class in `server/classes.json`
+### 2. List the class in `server/classes.json`
 
 This file is committed to the repo (doc/folder IDs aren't secret — the
 Drive API still requires the doc to actually be shared with the service
@@ -163,18 +176,20 @@ With one class configured, students just go to your deployed URL and
 click **Start**. With more than one, the home page automatically shows a
 button per class (linking to `play.html?class=tuesday-beginners`, etc.).
 
-### 4. Deploy the server
+### 3. Deploy the server
 
 **Render (recommended, free tier available):**
 
 1. Push this repo to GitHub (already done if you're reading this there).
 2. In Render, **New → Web Service**, connect this repo — it reads
    `render.yaml` automatically.
-3. In the service's **Environment** settings, add:
-   - `GOOGLE_CLIENT_EMAIL` — the service account's email
-   - `GOOGLE_PRIVATE_KEY` — the `private_key` field from the downloaded
-     JSON (keep the `\n` characters as literal text — most dashboards,
-     including Render's, handle this fine when pasted as-is)
+3. In the service's **Environment** settings, add whichever credentials
+   you got in step 1:
+   - `GOOGLE_API_KEY` — for public docs, or
+   - `GOOGLE_CLIENT_EMAIL` + `GOOGLE_PRIVATE_KEY` (the `private_key`
+     field from the downloaded JSON — keep the `\n` characters as literal
+     text, most dashboards including Render's handle this fine pasted
+     as-is) for private ones, or both if you have a mix.
 4. Deploy. Render gives you a permanent URL — that's the link students
    use.
 
@@ -226,7 +241,7 @@ public/                 Everything the browser loads directly
   js/content.js         Fallback/demo content only (see above)
 server/
   index.js              Express app: serves public/, exposes /api/content
-  drive.js              Google Drive REST calls, authenticated as the service account
+  drive.js              Google Drive reads: public export, then API key, then service account
   parseContent.js       Turns tagged lines into game content
   classes.js            Reads classes.json (+ optional CLASS_FOLDERS_JSON override)
   classes.json          Committed class → Doc/folder mapping (see above)

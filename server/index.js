@@ -95,7 +95,7 @@ app.get("/api/content", async (req, res) => {
   } catch (err) {
     console.error("Failed to load content from Drive:", err);
     res.status(500).json({
-      error: "Could not load content from Google Drive. Make sure the doc is shared with the service account.",
+      error: "Could not load this doc. Make sure it's shared as \"Anyone with the link can view\" (or with the service account, if it's kept private).",
       detail: String(err && err.message ? err.message : err),
     });
   }
