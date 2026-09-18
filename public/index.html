@@ -10,32 +10,14 @@
   <div class="page">
     <header class="site-header">
       <h1>English Class Review</h1>
-      <p class="muted">A quick, self-paced review of this week's lesson — and a bit of everything before it.</p>
+      <p class="muted">A quick, self-paced review built from your class document — nothing to install, nothing to save.</p>
     </header>
 
     <div class="card center">
-      <h2>Ready to play?</h2>
-      <p>
-        Five rounds — multiple choice, gap fill, matching, spot-the-error, and a
-        short writing task — then a final flying challenge to reach 200 points.
-      </p>
-      <p class="muted">Takes about 8–10 minutes. Works on phone, tablet, or computer.</p>
-      <div id="class-links">
-        <a class="btn btn-primary" href="play.html">Start review</a>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>For the teacher</h3>
+      <h2>Paste your class document link</h2>
       <p class="muted">
-        This week's material is pulled live from your Google Docs each time a
-        student clicks Start — there's nothing to update here. See the README
-        for how content is tagged and configured.
-      </p>
-      <p class="muted">
-        Want to try out a doc without setting it up as a class first? Paste
-        its link below (the server still needs to be able to read it —
-        publicly shared, or via a service account — see README).
+        Your teacher's Google Doc link — the game reads it and builds your
+        review from it automatically.
       </p>
       <form id="doc-form" class="doc-form">
         <input
@@ -43,40 +25,62 @@
           id="doc-input"
           class="text-input"
           placeholder="https://docs.google.com/document/d/.../edit"
+          autocomplete="off"
         />
-        <button type="submit" class="btn btn-primary">Preview this doc</button>
+        <button type="submit" class="btn btn-primary">Start review</button>
       </form>
+      <p id="doc-error" class="feedback bad hidden"></p>
+    </div>
+
+    <div id="class-links" class="card center hidden"></div>
+
+    <div class="card">
+      <p class="muted">
+        Five rounds — multiple choice, gap fill, matching, spot-the-error, and
+        a short writing task — then a final flying challenge to reach 200
+        points. Takes about 8–10 minutes, and works on phone, tablet, or
+        computer.
+      </p>
     </div>
   </div>
 
   <script type="module">
-    document.getElementById("doc-form").addEventListener("submit", (e) => {
+    const form = document.getElementById("doc-form");
+    const input = document.getElementById("doc-input");
+    const errorBox = document.getElementById("doc-error");
+
+    form.addEventListener("submit", (e) => {
       e.preventDefault();
-      const value = document.getElementById("doc-input").value.trim();
-      if (!value) return;
+      const value = input.value.trim();
+      if (!value) {
+        errorBox.textContent = "Paste your class document's link first.";
+        errorBox.classList.remove("hidden");
+        return;
+      }
       location.href = `play.html?doc=${encodeURIComponent(value)}`;
     });
 
-    // If more than one class is configured, replace the single "Start
-    // review" link with one per class.
+    // If the teacher has pre-configured named classes, offer them as
+    // quick shortcuts too — most setups won't have any, and that's fine.
     fetch("/api/classes")
       .then((res) => (res.ok ? res.json() : []))
       .then((classes) => {
-        if (!Array.isArray(classes) || classes.length < 2) return;
+        if (!Array.isArray(classes) || !classes.length) return;
         const wrap = document.getElementById("class-links");
-        wrap.innerHTML = "";
+        wrap.classList.remove("hidden");
+        wrap.appendChild(Object.assign(document.createElement("p"), { className: "muted center", textContent: "Or jump straight to a class:" }));
         for (const c of classes) {
           const a = document.createElement("a");
           a.className = "btn btn-primary";
           a.href = `play.html?class=${encodeURIComponent(c.slug)}`;
-          a.textContent = `Start: ${c.name}`;
+          a.textContent = c.name;
           a.style.display = "block";
           a.style.marginBottom = "10px";
           wrap.appendChild(a);
         }
       })
       .catch(() => {
-        // No server / not configured yet — the default single link stays.
+        // No server / not configured yet — the doc-link form still works on its own.
       });
   </script>
 </body>

@@ -1,7 +1,7 @@
 # English Class Review
 
-A quick, self-paced review game for a class link. A student opens the
-link, clicks **Start**, and plays through:
+A quick, self-paced review game for private study. A student opens the
+site, pastes the link to their class's Google Doc, and plays through:
 
 1. **Multiple choice**
 2. **Gap fill**
@@ -83,26 +83,32 @@ Either way, the natural workflow is the same: keep writing in your doc as
 usual, tag a few lines as you go, and the game picks it up automatically
 — no separate step, nothing to redeploy.
 
-### Playing a doc directly, without adding it as a class
+### The normal way in: paste the doc link, no setup per student
 
-You don't have to add a doc to `classes.json` just to try it out. The
-home page has a "paste your Doc link" field (in the teacher section) —
-paste any Google Doc link there and hit **Preview this doc** to play it
-immediately, using `play.html?doc=<link>` under the hood.
+This is a private-study tool, so the primary flow doesn't involve
+`classes.json` at all. The home page's main action is a text field —
+whoever is playing (a student, on their own) pastes their class
+document's link and hits **Start review**; that goes straight to
+`play.html?doc=<link>`, which fetches and parses that doc on the spot.
+Nothing to pre-configure, no accounts, no per-student setup — anyone
+with the doc's link can use it immediately.
 
 This still requires the doc to already be readable one of the ways
-described below (publicly shared, or shared with a service account) —
-pasting a random doc that isn't just fails with a clear error rather
-than leaking anything. It's meant for
-quickly checking that your tags are working, or for a one-off review
-session you don't want to bother naming as a permanent class. If you end
-up using it regularly, it's worth adding it to `classes.json` instead
-(see "Adding a new class later") so it gets a short, memorable link.
+described below (publicly shared, or via a service account) — pasting a
+link to a doc that isn't just fails with a clear error rather than
+leaking anything.
+
+`classes.json` (below) is an optional extra on top of this — useful if
+you want a short, memorable link for a specific class instead of
+everyone pasting the same long URL, but it's never required.
 
 ## One-time setup
 
-You only need to do this once (not weekly), and which path you take
-depends on how your docs are shared.
+None of this is required to use the paste-a-link flow above — the game
+already tries a free, zero-setup method first. This section only matters
+if that method turns out to be blocked (see below), or if you want named
+class shortcuts. Deploying the server itself (next section) is the one
+genuinely required step.
 
 ### 1. Get Google Drive credentials
 
@@ -144,7 +150,7 @@ Either way, copy the Doc's ID from its URL:
 `https://docs.google.com/document/d/`**`THIS_PART_IS_THE_ID`**`/edit`
 (or a folder's ID from `https://drive.google.com/drive/folders/`**`THIS_PART`**).
 
-### 2. List the class in `server/classes.json`
+### 2. (Optional) List a class in `server/classes.json`
 
 This file is committed to the repo (doc/folder IDs aren't secret — the
 Drive API still requires the doc to actually be shared with the service
@@ -183,8 +189,10 @@ button per class (linking to `play.html?class=tuesday-beginners`, etc.).
 1. Push this repo to GitHub (already done if you're reading this there).
 2. In Render, **New → Web Service**, connect this repo — it reads
    `render.yaml` automatically.
-3. In the service's **Environment** settings, add whichever credentials
-   you got in step 1:
+3. Leave the Google credential env vars blank for now and deploy — try
+   pasting a link on the live site first. Only come back and add
+   whichever credentials you got in step 1 if you hit the "doc isn't
+   publicly viewable" error:
    - `GOOGLE_API_KEY` — for public docs, or
    - `GOOGLE_CLIENT_EMAIL` + `GOOGLE_PRIVATE_KEY` (the `private_key`
      field from the downloaded JSON — keep the `\n` characters as literal

@@ -135,6 +135,10 @@ header.site-header h1 {
   color: var(--primary-ink);
 }
 
+.hidden {
+  display: none !important;
+}
+
 .btn.hidden {
   display: none;
 }
