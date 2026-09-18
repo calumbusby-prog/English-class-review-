@@ -38,6 +38,30 @@ function pickWeighted(weekArr, courseArr, n) {
   return picks.map((p) => p.item);
 }
 
+// Builds "What does X mean?" multiple-choice questions straight out of
+// vocab pairs — used when a doc has extracted/tagged vocabulary but no
+// explicit MCQ: lines, so the round still has real questions instead of
+// being skipped.
+function synthesizeMcqFromVocab(vocabPool, count) {
+  if (vocabPool.length < 2) return [];
+  const pool = shuffle(vocabPool);
+  const out = [];
+  for (let i = 0; i < Math.min(count, pool.length); i++) {
+    const correctItem = pool[i];
+    const distractors = shuffle(vocabPool.filter((v) => v.term !== correctItem.term))
+      .slice(0, 3)
+      .map((v) => v.definition);
+    if (distractors.length < 1) continue;
+    const options = shuffle([correctItem.definition, ...distractors]);
+    out.push({
+      q: `What does "${correctItem.term}" mean?`,
+      options,
+      correct: options.indexOf(correctItem.definition),
+    });
+  }
+  return out;
+}
+
 function el(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -122,7 +146,11 @@ export class GameEngine {
   }
 
   async mcqRound() {
-    const items = pickWeighted(this.content.week.mcq, this.content.course.mcq, 5);
+    let items = pickWeighted(this.content.week.mcq, this.content.course.mcq, 5);
+    if (!items.length) {
+      const vocabPool = [...this.content.week.vocabMatch, ...this.content.course.vocabMatch];
+      items = synthesizeMcqFromVocab(vocabPool, 5);
+    }
     for (let i = 0; i < items.length; i++) {
       await this.mcqQuestion(items[i], i + 1, items.length);
     }

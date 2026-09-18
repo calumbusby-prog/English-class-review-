@@ -26,16 +26,43 @@ you were most recently working in for a given class, live, every time a
 student clicks Start (cached for 5 minutes so a class full of students
 doesn't hammer the Drive API).
 
-**Only specially tagged lines are ever pulled into the game.** Everything
-else in your notes — freeform prose, other students' names, anything
-private — is ignored completely. This means you can keep using the exact
-same running lesson-notes doc you already write in; you just sprinkle in
-a few tagged lines as you go.
+**Vocabulary needs no special formatting at all.** The server scans the
+doc for ordinary "Term — definition" style lines — the kind that already
+show up naturally in a vocab list, like:
 
-### The tags
+```
+Assertive — confident, but not rude; you say clearly what you want
+Blunt — so honest it can sound rude
+```
+
+— and turns them straight into vocabulary pairs, which power the
+matching round, an auto-generated multiple-choice round ("What does
+_Blunt_ mean?"), and the bird-game finale. No tags, no reformatting.
+
+This extraction deliberately stays cautious: it only recognizes short,
+dictionary-style definitions, and explicitly rejects lines that look
+like a note about a specific person rather than a word's meaning (e.g.
+"Alejandro - wants to improve his grammar" never gets pulled in, even
+though it matches the same dash pattern). If a line doesn't get picked
+up, it's just skipped — nothing about your notes is ever exposed beyond
+what genuinely looks like vocabulary.
+
+**Everything else — multiple choice, gap fill, error-spotting, writing
+prompts — still needs explicit tags**, since those require a specific
+right answer that can't be inferred from prose. Tag lines are also
+skipped if malformed, and only tagged lines are ever read for those
+categories — nothing freeform leaks through. A handful of tagged lines a
+week (5–10) is enough for a full game; even zero is fine, since
+vocabulary extraction alone already produces a matching round, an MCQ
+round, and a bird-game finale on its own.
+
+### The tags (optional — for anything beyond vocabulary)
 
 Drop these anywhere in your doc, one per line, mixed in with your normal
-notes:
+notes, if you also want multiple choice, gap fill, error-spotting, or
+writing prompts (or want to hand-write a VOCAB pair instead of relying on
+extraction — a tagged `VOCAB:` line always takes priority over an
+extracted one with the same term):
 
 ```
 VOCAB: term | definition
@@ -250,7 +277,7 @@ public/                 Everything the browser loads directly
 server/
   index.js              Express app: serves public/, exposes /api/content
   drive.js              Google Drive reads: public export, then API key, then service account
-  parseContent.js       Turns tagged lines into game content
+  parseContent.js       Vocab extraction + tagged-line parsing into game content
   classes.js            Reads classes.json (+ optional CLASS_FOLDERS_JSON override)
   classes.json          Committed class → Doc/folder mapping (see above)
 ```
