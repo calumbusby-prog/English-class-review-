@@ -12,6 +12,9 @@ services:
         sync: false
       - key: GOOGLE_PRIVATE_KEY
         sync: false
+      # Classes are normally configured in server/classes.json (committed
+      # to the repo) instead of here. Only set this if you want a class
+      # that isn't committed to the repo — see server/classes.js.
       - key: CLASS_FOLDERS_JSON
         sync: false
     autoDeploy: true

@@ -116,29 +116,12 @@ For each class, depending on which mode you're using (see above):
   later). Copy the folder's ID from its URL:
   `https://drive.google.com/drive/folders/`**`THIS_PART_IS_THE_ID`**
 
-### 3. Deploy the server
+### 3. List the class in `server/classes.json`
 
-**Render (recommended, free tier available):**
-
-1. Push this repo to GitHub (already done if you're reading this there).
-2. In Render, **New → Web Service**, connect this repo — it reads
-   `render.yaml` automatically.
-3. In the service's **Environment** settings, add:
-   - `GOOGLE_CLIENT_EMAIL` — the service account's email
-   - `GOOGLE_PRIVATE_KEY` — the `private_key` field from the downloaded
-     JSON (keep the `\n` characters as literal text — most dashboards,
-     including Render's, handle this fine when pasted as-is)
-   - `CLASS_FOLDERS_JSON` — see below
-4. Deploy. Render gives you a permanent URL — that's the link students
-   use.
-
-Alternatively, set `GOOGLE_SERVICE_ACCOUNT_JSON` to the entire downloaded
-JSON file's contents as one line, instead of the two separate
-`GOOGLE_CLIENT_EMAIL` / `GOOGLE_PRIVATE_KEY` variables.
-
-**`CLASS_FOLDERS_JSON`** maps a URL-friendly slug to each class's content
-source — `docId` for a single doc, `folderId` for a folder, and you can
-mix both styles across classes:
+This file is committed to the repo (doc/folder IDs aren't secret — the
+Drive API still requires the doc to actually be shared with the service
+account before anything can be read). Add an entry per class, `docId` for
+a single doc or `folderId` for a folder, and you can mix both styles:
 
 ```json
 {
@@ -156,9 +139,50 @@ mix both styles across classes:
 past lessons' Doc IDs there if you want a course-wide 10% mix-in; leave
 it out and the game just runs entirely on this week's doc.
 
+If a particular class shouldn't be public in this repo (e.g. it would
+name a specific student and the repo is public), skip adding it here and
+set it via the `CLASS_FOLDERS_JSON` environment variable on Render
+instead — same shape, and it overrides same-slug entries from the file.
+
 With one class configured, students just go to your deployed URL and
 click **Start**. With more than one, the home page automatically shows a
 button per class (linking to `play.html?class=tuesday-beginners`, etc.).
+
+### 4. Deploy the server
+
+**Render (recommended, free tier available):**
+
+1. Push this repo to GitHub (already done if you're reading this there).
+2. In Render, **New → Web Service**, connect this repo — it reads
+   `render.yaml` automatically.
+3. In the service's **Environment** settings, add:
+   - `GOOGLE_CLIENT_EMAIL` — the service account's email
+   - `GOOGLE_PRIVATE_KEY` — the `private_key` field from the downloaded
+     JSON (keep the `\n` characters as literal text — most dashboards,
+     including Render's, handle this fine when pasted as-is)
+4. Deploy. Render gives you a permanent URL — that's the link students
+   use.
+
+Alternatively, set `GOOGLE_SERVICE_ACCOUNT_JSON` to the entire downloaded
+JSON file's contents as one line, instead of the two separate
+`GOOGLE_CLIENT_EMAIL` / `GOOGLE_PRIVATE_KEY` variables.
+
+## Adding a new class later
+
+Because classes live in a committed file, adding one is just a small
+code change — which means you don't have to do it by hand. In a Claude
+Code session that has this repo and your Google Drive connected (like
+the one that built this), you can just say something like:
+
+> Add my Tuesday Beginners class — here's the doc:
+> https://docs.google.com/document/d/.../edit
+
+and it will look up the doc, add the entry to `server/classes.json`,
+share-check reminders if needed, and push — Render redeploys
+automatically (`autoDeploy: true` in `render.yaml`), live within a
+minute or two. A plain claude.ai Project chat can't do this on its own
+(it has no way to push code or redeploy), but a Claude Code session can,
+since it has actual write access to this repository.
 
 ## Running it locally
 
@@ -168,9 +192,9 @@ cp .env.example .env   # fill in your real credentials
 npm start
 ```
 
-Open `http://localhost:3000`. If `CLASS_FOLDERS_JSON` isn't set (or the
-Drive credentials are wrong), the game automatically falls back to
-built-in sample content in `js/content.js` — so you can always test the
+Open `http://localhost:3000`. If no classes are configured (or the Drive
+credentials are wrong), the game automatically falls back to built-in
+sample content in `public/js/content.js` — so you can always test the
 game mechanics themselves without live Drive access. A small warning
 appears on the start screen when this fallback kicks in, so you'll know
 if something's misconfigured in production.
@@ -178,18 +202,19 @@ if something's misconfigured in production.
 ## Project structure
 
 ```
-public/           Everything the browser loads directly
-  index.html      Landing page (lists classes if more than one)
-  play.html       The game itself
+public/                 Everything the browser loads directly
+  index.html            Landing page (lists classes if more than one)
+  play.html             The game itself
   css/style.css
-  js/engine.js    Round sequencing, scoring — knows nothing about topics
-  js/bird.js      The final flappy-bird-style challenge
-  js/content.js   Fallback/demo content only (see above)
+  js/engine.js          Round sequencing, scoring — knows nothing about topics
+  js/bird.js            The final flappy-bird-style challenge
+  js/content.js         Fallback/demo content only (see above)
 server/
-  index.js        Express app: serves public/, exposes /api/content
-  drive.js        Google Drive REST calls, authenticated as the service account
-  parseContent.js Turns tagged lines into game content
-  classes.js      Reads CLASS_FOLDERS_JSON
+  index.js              Express app: serves public/, exposes /api/content
+  drive.js              Google Drive REST calls, authenticated as the service account
+  parseContent.js       Turns tagged lines into game content
+  classes.js            Reads classes.json (+ optional CLASS_FOLDERS_JSON override)
+  classes.json          Committed class → Doc/folder mapping (see above)
 ```
 
 `engine.js` and `bird.js` never reference any specific topic or
