@@ -8,9 +8,13 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22
-      # Recommended: lets Claude actually read docs and write correct
-      # exercises. Without it, falls back to the free parser automatically.
+      # Lets an AI actually read docs and write correct exercises, instead
+      # of the free regex-based parser. Set ANTHROPIC_API_KEY (paid, best
+      # quality) or GEMINI_API_KEY (free tier, see README.md) — either or
+      # both. Without either, falls back to the free parser automatically.
       - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
         sync: false
       # For docs shared "Anyone with the link can view" — see README.md.
       - key: GOOGLE_API_KEY

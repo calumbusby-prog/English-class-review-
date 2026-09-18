@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { listDocsInFolder, exportDocText } from "./drive.js";
 import { parseDocsForClass } from "./parseContent.js";
 import { generateContentFromDoc } from "./generateContent.js";
+import { generateContentFromDocGemini } from "./generateContentGemini.js";
 import { getClasses } from "./classes.js";
 import { extractDocId } from "./docId.js";
 
@@ -33,12 +34,28 @@ function fallbackParse(weekText, restTexts, weekLabel) {
   return { weekLabel: label, week: weekParsed, course: courseParsed };
 }
 
+// Which AI generator to try, in order: Claude (if ANTHROPIC_API_KEY is
+// set) first, then the free-tier Gemini (if GEMINI_API_KEY is set),
+// falling further back to the free tag/heuristic parser if neither key
+// is set, or if every configured option fails.
+function getAiGenerators() {
+  const generators = [];
+  if (process.env.ANTHROPIC_API_KEY) {
+    generators.push({ name: "Claude", generate: generateContentFromDoc });
+  }
+  if (process.env.GEMINI_API_KEY) {
+    generators.push({ name: "Gemini", generate: generateContentFromDocGemini });
+  }
+  return generators;
+}
+
 // Fetches a "this week" doc plus a pool of "course" docs, then turns them
-// into game content — via Claude if ANTHROPIC_API_KEY is set (it reads
+// into game content via whichever AI generator is configured — it reads
 // the dated subheadings itself to figure out what's most recent, and
-// writes exercises with answers that are actually correct), otherwise
-// via the free tag/heuristic parser. Cached so a class full of students
-// hitting Start at once doesn't each trigger their own round of calls.
+// writes exercises with answers that are actually correct — falling back
+// to the free tag/heuristic parser if none is configured, or all fail.
+// Cached so a class full of students hitting Start at once doesn't each
+// trigger their own round of calls.
 async function loadContent(cacheKey, weekDocId, restDocIds, weekLabel) {
   const cached = cache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
@@ -48,17 +65,19 @@ async function loadContent(cacheKey, weekDocId, restDocIds, weekLabel) {
   const weekText = await exportDocText(weekDocId);
   const restTexts = await Promise.all(restDocIds.map((id) => exportDocText(id)));
 
-  let data;
-  if (process.env.ANTHROPIC_API_KEY) {
+  let data = null;
+  const combinedText = [weekText, ...restTexts].join("\n\n--- (next document) ---\n\n");
+  for (const { name, generate } of getAiGenerators()) {
     try {
-      const combinedText = [weekText, ...restTexts].join("\n\n--- (next document) ---\n\n");
-      const generated = await generateContentFromDoc(combinedText);
+      const generated = await generate(combinedText);
       data = { weekLabel: generated.weekLabel || weekLabel, week: generated.week, course: generated.course };
+      break;
     } catch (err) {
-      console.error("AI content generation failed, falling back to the tag/heuristic parser:", err);
-      data = fallbackParse(weekText, restTexts, weekLabel);
+      console.error(`${name} content generation failed, trying the next option:`, err);
     }
-  } else {
+  }
+
+  if (!data) {
     data = fallbackParse(weekText, restTexts, weekLabel);
   }
 

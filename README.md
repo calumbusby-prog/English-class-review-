@@ -25,7 +25,7 @@ edit or redeploy each week. A small server reads a Google Doc live,
 every time a student clicks Start (cached for 30 minutes so a class full
 of students doesn't trigger repeat work).
 
-### Claude reads the doc and writes the exercises (recommended)
+### Claude reads the doc and writes the exercises (paid, best quality)
 
 Set `ANTHROPIC_API_KEY` and the server hands your doc's raw text to
 Claude, which:
@@ -60,11 +60,51 @@ minutes), using Claude Opus 5 by default. Set `ANTHROPIC_MODEL` to a
 cheaper model (e.g. `claude-haiku-4-5`) if cost matters more than
 squeezing out the best possible questions.
 
-### The free fallback (no API key, no cost)
+### Gemini reads the doc and writes the exercises (free tier, no card)
 
-Without `ANTHROPIC_API_KEY`, the server falls back to a plain,
+If you don't want to pay for Claude, **Google's Gemini API has a
+genuinely free, permanent tier** — no expiring trial, no credit card —
+and does the same job: reads your doc, finds the most recent dated
+section, and writes exercises with real answers instead of
+regex-guessed ones. Quality is generally a notch behind Claude, but far
+better than the plain parser below, and it costs nothing.
+
+1. Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+   and sign in with a Google account.
+2. Click **Create API key** → **Create API key in new project** (or pick
+   an existing Cloud project if you already have one).
+3. Copy the key — this is your `GEMINI_API_KEY`. No further setup, no
+   billing page, no card required for the free tier.
+4. Set it as an environment variable (`.env` locally, or Render's
+   dashboard when deployed — see below). That's it.
+
+**Free tier limits** (current as of writing — Google can change these):
+10 requests/minute, 500 requests/day on the default model
+(`gemini-2.5-flash`). With this app's 30-minute cache per class, that's
+roughly 48 possible regenerations a day *per class* at the absolute
+maximum — far more than a real class needs. If you ever hit a rate
+limit, the server automatically falls back to the plain parser for that
+request rather than failing outright.
+
+Same privacy note as Claude above: your doc's full text is sent to
+Google's API to do this, with the same instruction to only output
+generic teaching material and never a student's personal details — the
+input itself isn't pre-filtered before sending.
+
+Set `GEMINI_MODEL` to override the default model if Google renames or
+retires `gemini-2.5-flash` in the future — check
+[aistudio.google.com](https://aistudio.google.com/) for whichever model
+is currently listed as free-tier.
+
+If you set **both** `ANTHROPIC_API_KEY` and `GEMINI_API_KEY`, Claude is
+tried first, falling back to Gemini only if that specific call fails
+(not as a quality choice — just as a spare option).
+
+### The regex-only fallback (zero setup, not just free)
+
+Without either API key set, the server falls back to a plain,
 rule-based parser instead — no external calls, nothing sent anywhere,
-but noticeably less capable:
+but noticeably less capable than either AI option above:
 
 - **Vocabulary needs no special formatting.** It scans for ordinary
   "Term — definition" lines — the kind that already show up naturally in
@@ -136,8 +176,8 @@ wrong answer.
 One limitation worth knowing: "DD/MM" headers carry no year, so recency
 is a same-year approximation (good for a doc actively being added to
 within one teaching period; it can't perfectly order dates spanning a
-year boundary). Claude generation handles this properly, reasoning about
-the actual current date, if that matters enough to be worth the cost.
+year boundary). Claude or Gemini generation handles this properly,
+reasoning about the actual current date.
 
 If a doc has no dated subheadings at all, the whole thing is treated as
 "this week" with no course-wide pool — same as before. Each class still
@@ -176,23 +216,39 @@ everyone pasting the same long URL, but it's never required.
 
 The paste-a-link flow above works with zero setup — the game already
 tries a free method first for both reading the doc and generating
-content. This section only matters if you want Claude's smarter content
-generation, if the free Drive method turns out to be blocked, or if you
-want named class shortcuts. Deploying the server itself (last section)
-is the one genuinely required step.
+content. This section only matters if you want an AI (Claude or the
+free-tier Gemini) actually reading your docs instead of the plain
+parser, if the free Drive method turns out to be blocked, or if you want
+named class shortcuts. Deploying the server itself (last section) is the
+one genuinely required step.
 
-### 1. Get an Anthropic API key (recommended, for content generation)
+### 1. Get an AI content-generation key (Claude, Gemini, or skip both)
+
+Pick one — or skip this step entirely and the server automatically
+falls back to the free rule-based parser (see above), which just needs
+`VOCAB:` / `MCQ:` / etc. tags to produce anything beyond vocabulary.
+
+**Claude (paid):**
 
 1. Go to [console.anthropic.com](https://console.anthropic.com/) and
    sign in or create an account.
 2. **API Keys → Create Key**. Copy it — this is your
    `ANTHROPIC_API_KEY`.
-3. Add billing details if you haven't already (Settings → Billing) —
-   generation costs roughly a few cents per doc, cached for 30 minutes.
+3. Add billing details (Settings → Billing) — generation costs roughly a
+   few cents per doc, cached for 30 minutes.
 
-Skip this and the server automatically falls back to the free rule-based
-parser instead (see above) — nothing breaks, it just needs `VOCAB:` /
-`MCQ:` / etc. tags to produce anything beyond vocabulary.
+**Gemini (free, no card):**
+
+1. Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+   and sign in with a Google account.
+2. **Create API key → Create API key in new project** (or pick an
+   existing one).
+3. Copy it — this is your `GEMINI_API_KEY`. Nothing else to set up; the
+   free tier (500 requests/day as of writing) needs no billing page at
+   all.
+
+Setting both is fine too — Claude is tried first, Gemini only if that
+call fails.
 
 ### 2. Get Google Drive credentials
 
@@ -273,11 +329,12 @@ button per class (linking to `play.html?class=tuesday-beginners`, etc.).
 1. Push this repo to GitHub (already done if you're reading this there).
 2. In Render, **New → Web Service**, connect this repo — it reads
    `render.yaml` automatically.
-3. Add `ANTHROPIC_API_KEY` now if you got one in step 1 — that's what
-   turns on Claude's content generation from the start. Leave the Google
-   credential env vars blank for now and deploy — try pasting a link on
-   the live site first. Only come back and add whichever credentials you
-   got in step 2 if you hit the "doc isn't publicly viewable" error:
+3. Add `ANTHROPIC_API_KEY` and/or `GEMINI_API_KEY` now if you got one in
+   step 1 — that's what turns on real content generation from the start.
+   Leave the Google credential env vars blank for now and deploy — try
+   pasting a link on the live site first. Only come back and add
+   whichever credentials you got in step 2 if you hit the "doc isn't
+   publicly viewable" error:
    - `GOOGLE_API_KEY` — for public docs, or
    - `GOOGLE_CLIENT_EMAIL` + `GOOGLE_PRIVATE_KEY` (the `private_key`
      field from the downloaded JSON — keep the `\n` characters as literal
@@ -315,9 +372,10 @@ cp .env.example .env   # fill in your real credentials
 npm start
 ```
 
-Open `http://localhost:3000`. Without `ANTHROPIC_API_KEY` set, content
-generation falls back to the free tag/heuristic parser automatically —
-no error, just less capable output. If no classes are configured (or the
+Open `http://localhost:3000`. Without `ANTHROPIC_API_KEY` or
+`GEMINI_API_KEY` set, content generation falls back to the free
+tag/heuristic parser automatically — no error, just less capable output.
+If no classes are configured (or the
 Drive credentials are wrong too), the game falls back further to
 built-in sample content in `public/js/content.js`, so you can always
 test the game mechanics without any live access at all. A small warning
@@ -338,6 +396,7 @@ server/
   index.js              Express app: serves public/, exposes /api/content
   drive.js              Google Drive reads: public export, then API key, then service account
   generateContent.js    Claude-based content generation (when ANTHROPIC_API_KEY is set)
+  generateContentGemini.js  Gemini-based content generation (when GEMINI_API_KEY is set)
   parseContent.js       Free fallback: vocab extraction + tagged-line parsing
   classes.js            Reads classes.json (+ optional CLASS_FOLDERS_JSON override)
   classes.json          Committed class → Doc/folder mapping (see above)
