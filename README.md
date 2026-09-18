@@ -83,6 +83,21 @@ Either way, the natural workflow is the same: keep writing in your doc as
 usual, tag a few lines as you go, and the game picks it up automatically
 — no separate step, nothing to redeploy.
 
+### Playing a doc directly, without adding it as a class
+
+You don't have to add a doc to `classes.json` just to try it out. The
+home page has a "paste your Doc link" field (in the teacher section) —
+paste any Google Doc link there and hit **Preview this doc** to play it
+immediately, using `play.html?doc=<link>` under the hood.
+
+This still requires the doc to already be shared with the service
+account (see setup below) — pasting a random doc you haven't shared just
+fails with a clear error rather than leaking anything. It's meant for
+quickly checking that your tags are working, or for a one-off review
+session you don't want to bother naming as a permanent class. If you end
+up using it regularly, it's worth adding it to `classes.json` instead
+(see "Adding a new class later") so it gets a short, memorable link.
+
 ## One-time setup
 
 You only need to do this once per class (not weekly).

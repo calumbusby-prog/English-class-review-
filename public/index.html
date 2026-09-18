@@ -32,12 +32,33 @@
         student clicks Start — there's nothing to update here. See the README
         for how content is tagged and configured.
       </p>
+      <p class="muted">
+        Want to try out a doc without setting it up as a class first? Paste
+        its link below (it still needs to be shared with the service
+        account — see README).
+      </p>
+      <form id="doc-form" class="doc-form">
+        <input
+          type="text"
+          id="doc-input"
+          class="text-input"
+          placeholder="https://docs.google.com/document/d/.../edit"
+        />
+        <button type="submit" class="btn btn-primary">Preview this doc</button>
+      </form>
     </div>
   </div>
 
   <script type="module">
-    // If more than one class is configured (CLASS_FOLDERS_JSON on the
-    // server), replace the single "Start review" link with one per class.
+    document.getElementById("doc-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const value = document.getElementById("doc-input").value.trim();
+      if (!value) return;
+      location.href = `play.html?doc=${encodeURIComponent(value)}`;
+    });
+
+    // If more than one class is configured, replace the single "Start
+    // review" link with one per class.
     fetch("/api/classes")
       .then((res) => (res.ok ? res.json() : []))
       .then((classes) => {

@@ -20,9 +20,11 @@
 
     const params = new URLSearchParams(location.search);
     const cls = params.get("class");
+    const doc = params.get("doc");
 
     async function loadContent() {
-      const url = "/api/content" + (cls ? `?class=${encodeURIComponent(cls)}` : "");
+      const query = doc ? `?doc=${encodeURIComponent(doc)}` : cls ? `?class=${encodeURIComponent(cls)}` : "";
+      const url = "/api/content" + query;
       try {
         const res = await fetch(url);
         if (!res.ok) {
