@@ -1,0 +1,292 @@
+:root {
+  --bg: #f4f7fb;
+  --card: #ffffff;
+  --ink: #1a2b3c;
+  --muted: #5c6b7a;
+  --primary: #2f6fed;
+  --primary-ink: #ffffff;
+  --good: #1f9d55;
+  --good-bg: #e7f8ee;
+  --bad: #d1453b;
+  --bad-bg: #fdeceb;
+  --border: #e1e7ef;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+header.site-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+header.site-header h1 {
+  margin-bottom: 4px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(20, 30, 50, 0.05);
+  margin-bottom: 16px;
+}
+
+.card.center {
+  text-align: center;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.center {
+  text-align: center;
+}
+
+.demo-note {
+  color: var(--bad);
+  font-size: 0.85rem;
+}
+
+.big-score {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 8px 0 16px;
+}
+
+.btn {
+  display: inline-block;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 26px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.05s ease, opacity 0.15s ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+
+.btn.hidden {
+  display: none;
+}
+
+.progress-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.option {
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: #fafbfd;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.option:hover {
+  border-color: var(--primary);
+}
+
+.option.correct {
+  background: var(--good-bg);
+  border-color: var(--good);
+  color: var(--good);
+  font-weight: 600;
+}
+
+.option.incorrect {
+  background: var(--bad-bg);
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.option.selected {
+  border-color: var(--primary);
+  background: #eef4ff;
+}
+
+.option.matched {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.feedback {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f2f4f7;
+  font-size: 0.95rem;
+}
+
+.feedback.hidden {
+  display: none;
+}
+
+.feedback.good {
+  background: var(--good-bg);
+  color: var(--good);
+}
+
+.feedback.bad {
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+
+.sentence {
+  font-size: 1.15rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.sentence-wrong {
+  font-size: 1.1rem;
+  font-style: italic;
+  padding: 12px 14px;
+  background: var(--bad-bg);
+  border-radius: 10px;
+  border: 1px solid #f4c9c5;
+}
+
+.correct-answer {
+  font-weight: 600;
+  color: var(--good);
+}
+
+.text-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  font-size: 1rem;
+  font-family: inherit;
+  margin: 10px 0;
+}
+
+.text-input.correct {
+  border-color: var(--good);
+}
+
+.text-input.incorrect {
+  border-color: var(--bad);
+}
+
+.match-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.match-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.match-item {
+  font-size: 0.92rem;
+  padding: 10px 12px;
+}
+
+.bird-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bird-canvas-wrap {
+  width: 100%;
+  position: relative;
+}
+
+.bird-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  touch-action: manipulation;
+}
+
+.bird-hud {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.bird-score {
+  font-weight: 700;
+  font-size: 1.1rem;
+  min-width: 90px;
+}
+
+.bird-progress {
+  flex: 1;
+  min-width: 120px;
+  height: 10px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bird-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.2s ease;
+}
+
+.bird-prompt {
+  flex-basis: 100%;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .match-grid {
+    grid-template-columns: 1fr;
+  }
+  .card {
+    padding: 18px;
+  }
+}

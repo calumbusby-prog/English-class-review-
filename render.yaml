@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: english-class-review
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: GOOGLE_CLIENT_EMAIL
+        sync: false
+      - key: GOOGLE_PRIVATE_KEY
+        sync: false
+      - key: CLASS_FOLDERS_JSON
+        sync: false
+    autoDeploy: true

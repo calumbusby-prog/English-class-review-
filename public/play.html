@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>English Class Review</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="site-header">
+      <h1>English Class Review</h1>
+    </header>
+    <div id="app"></div>
+  </div>
+
+  <script type="module">
+    import { GameEngine } from "./js/engine.js";
+    import { CONTENT as DEMO_CONTENT } from "./js/content.js";
+
+    const params = new URLSearchParams(location.search);
+    const cls = params.get("class");
+
+    async function loadContent() {
+      const url = "/api/content" + (cls ? `?class=${encodeURIComponent(cls)}` : "");
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          console.warn("Content API returned", res.status, await res.text().catch(() => ""));
+          return { content: DEMO_CONTENT, usingDemo: true };
+        }
+        const data = await res.json();
+        return { content: data, usingDemo: false };
+      } catch (err) {
+        console.warn("Could not reach content API, using demo content:", err);
+        return { content: DEMO_CONTENT, usingDemo: true };
+      }
+    }
+
+    loadContent().then(({ content, usingDemo }) => {
+      const engine = new GameEngine(document.getElementById("app"), content, { usingDemo });
+      engine.run();
+    });
+  </script>
+</body>
+</html>

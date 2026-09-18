@@ -1,0 +1,14 @@
+{
+  "name": "english-class-review",
+  "version": "1.0.0",
+  "description": "A self-paced English class review game that pulls each week's material live from your Google Docs.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "google-auth-library": "^11.1.0"
+  }
+}
