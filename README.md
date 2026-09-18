@@ -66,19 +66,22 @@ Notes on the format:
 
 ### How "this week" is chosen
 
-Content is organized **per class, one Google Drive folder per class**,
-containing the Google Docs for that class. Each time content is
-requested:
+Each class points at its content one of two ways — pick whichever matches
+how you actually organize your Docs:
 
-- The **most recently edited** Doc in the folder is treated as **this
-  week's material**.
-- Every other Doc in that folder is pooled as the **course-wide** bank
-  (the 10% mix-in).
+- **One doc per class** (`docId`) — the simplest option, and the right
+  one if you keep a single running notes doc per class, adding to it
+  lesson after lesson. That doc is always "this week's material." There's
+  no separate course-wide bank unless you also list some older docs in
+  `courseDocIds` (see below).
+- **One folder per class** (`folderId`) — if instead you create a new
+  Doc for each lesson, point at the folder that holds them all. The
+  **most recently edited** Doc in the folder becomes "this week"; every
+  other Doc in it is pooled as the **course-wide** bank (the 10% mix-in).
 
-So the natural workflow is: keep writing in whatever doc you're using for
-today's lesson (tag a few lines as you go), and it automatically becomes
-"this week" the moment it's the most recently saved file in that class's
-folder — no separate step.
+Either way, the natural workflow is the same: keep writing in your doc as
+usual, tag a few lines as you go, and the game picks it up automatically
+— no separate step, nothing to redeploy.
 
 ## One-time setup
 
@@ -100,16 +103,18 @@ This lets the server read your Docs without ever making them public.
 5. Copy the service account's **email address** (looks like
    `english-class-review@your-project.iam.gserviceaccount.com`).
 
-### 2. Share your class folder(s) with it
+### 2. Share your class doc(s) or folder with it
 
-For each class:
+For each class, depending on which mode you're using (see above):
 
-1. In Google Drive, create (or pick) a folder containing that class's
-   Google Docs.
-2. Share the folder with the service account's email address (just like
-   sharing with a person) — **Viewer** access is enough.
-3. Copy the folder's ID from its URL:
-   `https://drive.google.com/drive/folders/`**`THIS_PART_IS_THE_ID`**
+- **Single doc**: open the Doc, share it with the service account's email
+  address (just like sharing with a person) — **Viewer** access is
+  enough. Copy the Doc's ID from its URL:
+  `https://docs.google.com/document/d/`**`THIS_PART_IS_THE_ID`**`/edit`
+- **Folder of docs**: share the whole folder with the service account
+  instead (this covers every Doc inside it, including ones you add
+  later). Copy the folder's ID from its URL:
+  `https://drive.google.com/drive/folders/`**`THIS_PART_IS_THE_ID`**
 
 ### 3. Deploy the server
 
@@ -131,14 +136,25 @@ Alternatively, set `GOOGLE_SERVICE_ACCOUNT_JSON` to the entire downloaded
 JSON file's contents as one line, instead of the two separate
 `GOOGLE_CLIENT_EMAIL` / `GOOGLE_PRIVATE_KEY` variables.
 
-**`CLASS_FOLDERS_JSON`** maps a URL-friendly slug to each class's folder:
+**`CLASS_FOLDERS_JSON`** maps a URL-friendly slug to each class's content
+source — `docId` for a single doc, `folderId` for a folder, and you can
+mix both styles across classes:
 
 ```json
 {
-  "tuesday-beginners": { "name": "Tuesday Beginners", "folderId": "1AbC...xyz" },
-  "thursday-business": { "name": "Thursday Business English", "folderId": "1XyZ...abc" }
+  "tuesday-beginners": { "name": "Tuesday Beginners", "docId": "1AbC...xyz" },
+  "thursday-business": {
+    "name": "Thursday Business English",
+    "docId": "1XyZ...abc",
+    "courseDocIds": ["1Older...one", "1Older...two"]
+  },
+  "friday-group": { "name": "Friday Group", "folderId": "1FolderId...123" }
 }
 ```
+
+`courseDocIds` is optional and only relevant in single-doc mode — list
+past lessons' Doc IDs there if you want a course-wide 10% mix-in; leave
+it out and the game just runs entirely on this week's doc.
 
 With one class configured, students just go to your deployed URL and
 click **Start**. With more than one, the home page automatically shows a
